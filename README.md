@@ -16,6 +16,7 @@ Following considerations taken in design
 <b>JSON Template</b>: Use of JSON Alias to have single Model class for all suppliers. This can be extended further by introducing the template engine for each supplier without any code change 
 
 ### Overall Architecture
+![arch](https://github.com/rajganna/hotels_catalogue/assets/92783921/a63cba8f-46b4-41eb-b1ea-99ff8aaa2f30)
 
 
 ### Installing Docker
