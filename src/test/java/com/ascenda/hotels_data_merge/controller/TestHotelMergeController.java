@@ -18,7 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
-public class HotelMergeControllerTest {
+public class TestHotelMergeController {
 
     private static final String domain = "http://127.0.0.1";
 
