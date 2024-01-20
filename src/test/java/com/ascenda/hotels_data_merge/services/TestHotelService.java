@@ -14,7 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.BDDMockito.given;
 
 @ExtendWith(SpringExtension.class)
@@ -38,15 +38,15 @@ public class TestHotelService {
     @InjectMocks
     HotelService hotelService;
     @Test
-    public void mergeWithCache() throws EnrichmentException, IOException, URISyntaxException {
+    public void mergeWithCache() throws EnrichmentException, IOException, URISyntaxException, InterruptedException {
         Map<String, Hotel> hotelMap = new HashMap<>();
         Hotel hotel = new Hotel();
         hotel.id = "test";
         hotel.destinationId = String.valueOf(123);
         hotelMap.putIfAbsent("test", hotel);
-        given(cacheService.getCache()).willReturn(hotelMap);
+        given(cacheService.getHotelCache()).willReturn(hotelMap);
         List<com.ascenda.hotels_data_merge.dto.Hotel> hotels = hotelService.merge(List.of("test"), 123);
-        assertTrue(hotels.size() > 0);
+        assertFalse(hotels.isEmpty());
     }
 
 }

@@ -22,21 +22,34 @@ public class HotelService {
     private List<String> suppliers;
     private final CacheService cacheService;
     private final LocationEnrichment locationEnrichment;
+    private final PricingService pricingService;
     private final ImageEnrichment imageEnrichment;
     private final BookingConditionsEnrichment bookingConditionsEnrichment;
     private final AmenitiesEnrichment amenitiesEnrichment;
+    private final PricingEnrichment pricingEnrichment;
 
-    public HotelService(CacheService cacheService, LocationEnrichment locationEnrichment, ImageEnrichment imageEnrichment, BookingConditionsEnrichment bookingConditionsEnrichment, AmenitiesEnrichment amenitiesEnrichment) {
+    public HotelService(CacheService cacheService,
+                        PricingService pricingService,
+                        LocationEnrichment locationEnrichment,
+                        ImageEnrichment imageEnrichment,
+                        BookingConditionsEnrichment bookingConditionsEnrichment,
+                        AmenitiesEnrichment amenitiesEnrichment,
+                        PricingEnrichment pricingEnrichment) {
         this.cacheService = cacheService;
         this.locationEnrichment = locationEnrichment;
         this.imageEnrichment = imageEnrichment;
         this.bookingConditionsEnrichment = bookingConditionsEnrichment;
         this.amenitiesEnrichment = amenitiesEnrichment;
+        this.pricingEnrichment = pricingEnrichment;
+        this.pricingService = pricingService;
     }
 
-    public List<com.ascenda.hotels_data_merge.dto.Hotel> merge(List<String> hotelIds, Integer destinationId) throws EnrichmentException, IOException, URISyntaxException {
-        Map<String, com.ascenda.hotels_data_merge.dto.Hotel> hotelMap = cacheService.getCache();
-        if (hotelMap.size() == 0) {
+    public List<com.ascenda.hotels_data_merge.dto.Hotel> merge(List<String> hotelIds, Integer destinationId) throws EnrichmentException, IOException, URISyntaxException, InterruptedException {
+        Map<String, com.ascenda.hotels_data_merge.dto.Hotel> hotelMap = cacheService.getHotelCache();
+        if (hotelMap.isEmpty()) {
+            //Async call to pricing info
+            this.pricingService.getPricing(hotelIds);
+
             List<String> response = HttpUtil.sendGet(SuppliersUtil.getSuppliersURL(suppliers));
             for (var hotel : response) {
                 List<Hotel> hotels = List.of(ObjectMapperUtil
@@ -49,14 +62,13 @@ public class HotelService {
         return filter(hotelIds, destinationId);
     }
 
-    private void transform(List<Hotel> hotels) throws EnrichmentException {
-        Map<String, com.ascenda.hotels_data_merge.dto.Hotel> hotelMap = cacheService.getCache();
-
+    private void transform(List<Hotel> hotels) throws EnrichmentException, InterruptedException, URISyntaxException, IOException {
+        Map<String, com.ascenda.hotels_data_merge.dto.Hotel> hotelMap = cacheService.getHotelCache();
+        pricingService.getPricing(hotelMap.keySet().stream().toList());
         for (Hotel hotel : hotels) {
-            boolean isMerge = hotelMap != null && hotelMap.containsKey(hotel.id);
+            boolean isMerge = hotelMap.containsKey(hotel.id);
             com.ascenda.hotels_data_merge.dto.Hotel dtoHotel = map(hotel, isMerge ? hotelMap.get(hotel.id) : com.ascenda.hotels_data_merge.dto.Hotel.initialize());
             if (!isMerge) {
-                assert hotelMap != null;
                 hotelMap.putIfAbsent(hotel.id, dtoHotel);
             }
         }
@@ -64,7 +76,7 @@ public class HotelService {
     }
 
     private List<com.ascenda.hotels_data_merge.dto.Hotel> filter(List<String> hotelIds, Integer destinationId) {
-        Collection<com.ascenda.hotels_data_merge.dto.Hotel> hotels = cacheService.getCache().values();
+        Collection<com.ascenda.hotels_data_merge.dto.Hotel> hotels = cacheService.getHotelCache().values();
 
         if (hotelIds != null) {
             hotels = hotels.stream().filter(hotel -> hotelIds.contains(hotel.id)).toList();
@@ -76,7 +88,7 @@ public class HotelService {
         return new ArrayList<>(hotels);
     }
 
-    private com.ascenda.hotels_data_merge.dto.Hotel map(Hotel hotel, com.ascenda.hotels_data_merge.dto.Hotel dtoHotel) throws EnrichmentException {
+    private com.ascenda.hotels_data_merge.dto.Hotel map(Hotel hotel, com.ascenda.hotels_data_merge.dto.Hotel dtoHotel) throws EnrichmentException, InterruptedException {
 
         dtoHotel.id = hotel.id;
         dtoHotel.destinationId = hotel.destinationId;
@@ -89,6 +101,7 @@ public class HotelService {
         amenitiesEnrichment.enrich(dtoHotel, hotel);
         bookingConditionsEnrichment.enrich(dtoHotel, hotel);
         imageEnrichment.enrich(dtoHotel, hotel);
+        pricingEnrichment.enrich(dtoHotel, hotel);
 
         return dtoHotel;
     }

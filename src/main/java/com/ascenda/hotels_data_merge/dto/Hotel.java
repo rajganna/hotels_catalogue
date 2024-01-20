@@ -20,6 +20,7 @@ public class Hotel {
     public Amenities amenities;
     public Images images;
     public Location location;
+    public Double price;
 
     public static Hotel initialize() {
         com.ascenda.hotels_data_merge.dto.Hotel hotel = new com.ascenda.hotels_data_merge.dto.Hotel();
