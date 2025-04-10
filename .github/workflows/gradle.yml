@@ -65,6 +65,9 @@ jobs:
             sleep 5
           done
 
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
       - name: Run Gradle SonarQube analysis
         env:
           SONAR_TOKEN: admin
