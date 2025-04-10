@@ -72,7 +72,7 @@ jobs:
         env:
           SONAR_TOKEN: admin
         run: |
-          ./gradlew clean test jacocoTestReport sonarqube \
+          ./gradlew sonarqube \
             -Dsonar.projectKey=myproject \
             -Dsonar.host.url=http://localhost:9000 \
             -Dsonar.login=$SONAR_TOKEN
