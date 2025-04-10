@@ -1,36 +1,77 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-# This workflow will build a Java project with Gradle and cache/restore any dependencies to improve the workflow execution time
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-java-with-gradle
-
-name: Java CI with Gradle
+name: SonarQube with Coverage Report
 
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
-
-permissions:
-  contents: read
+    types: [opened, synchronize, reopened]
 
 jobs:
-  build:
-
+  analysis:
     runs-on: ubuntu-latest
+    services:
+      sonarqube:
+        image: sonarqube:community
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd="curl -f http://localhost:9000/api/system/health || exit 1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Run chmod to make gradlew executable
-      run: chmod +x ./gradlew
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-    - name: Build with Gradle
-      uses: gradle/gradle-build-action@bd5760595778326ba7f1441bcf7e88b49de61a25 # v2.6.0
-      with:
-        arguments: build
+      - uses: actions/checkout@v3
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Wait for SonarQube
+        run: |
+          echo "Waiting for SonarQube..."
+          for i in {1..30}; do
+            STATUS=$(curl -s http://localhost:9000/api/system/status | jq -r '.status')
+            if [ "$STATUS" == "UP" ]; then
+              echo "SonarQube is up!"
+              break
+            fi
+            sleep 5
+          done
+
+      - name: Run Tests + Coverage + SonarQube
+        env:
+          SONAR_TOKEN: admin
+        run: |
+          mvn clean verify sonar:sonar \
+            -Dsonar.projectKey=myproject \
+            -Dsonar.host.url=http://localhost:9000 \
+            -Dsonar.login=$SONAR_TOKEN \
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+
+      - name: Extract coverage from JaCoCo XML
+        id: jacoco
+        run: |
+          LINE_COVERAGE=$(xmllint --xpath "string(//report/counter[@type='LINE']/@covered)" target/site/jacoco/jacoco.xml)
+          LINE_TOTAL=$(xmllint --xpath "string(//report/counter[@type='LINE']/@missed)" target/site/jacoco/jacoco.xml)
+          LINE_TOTAL=$((LINE_COVERAGE + LINE_TOTAL))
+          PERCENT=$(awk "BEGIN {printf \"%.2f\", ($LINE_COVERAGE / $LINE_TOTAL) * 100}")
+          echo "coverage=$PERCENT" >> $GITHUB_OUTPUT
+
+      - name: Get Quality Gate status
+        id: quality_gate
+        run: |
+          sleep 5
+          STATUS=$(curl -s -u admin:admin \
+            "http://localhost:9000/api/qualitygates/project_status?projectKey=myproject" | jq -r '.projectStatus.status')
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+
+      - name: Post PR Comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          message: |
+            **SonarQube Analysis**
+            - Project: `myproject`
+            - Quality Gate: **${{ steps.quality_gate.outputs.status }}**
+            - Code Coverage: **${{ steps.jacoco.outputs.coverage }}%**
+            - [View Sonar Dashboard](http://localhost:9000/dashboard?id=myproject)
