@@ -2,9 +2,8 @@ name: SonarQube Analysis with Gradle
 
 on:
   pull_request_target:
-  push:
-    branches:
-      - main
+    types: [opened, synchronize, reopened]
+
 
 jobs:
   sonarqube-analysis:
