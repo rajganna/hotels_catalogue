@@ -75,4 +75,5 @@ jobs:
           ./gradlew sonarqube \
             -Dsonar.projectKey=myproject \
             -Dsonar.host.url=http://localhost:9000 \
-            -Dsonar.login=$SONAR_TOKEN
+            -Dsonar.login=admin
+            -Dsonar.password=admin
