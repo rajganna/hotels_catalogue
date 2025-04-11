@@ -1,36 +1,98 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-# This workflow will build a Java project with Gradle and cache/restore any dependencies to improve the workflow execution time
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-java-with-gradle
+name: SonarQube Analysis with Gradle
 
-name: Java CI with Gradle
+on: [pull_request]
 
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-
-permissions:
-  contents: read
 
 jobs:
-  build:
-
+  sonarqube-analysis:
     runs-on: ubuntu-latest
-
+    permissions:
+      pull-requests: write
     steps:
-    - uses: actions/checkout@v4
-    - name: Run chmod to make gradlew executable
-      run: chmod +x ./gradlew
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-    - name: Build with Gradle
-      uses: gradle/gradle-build-action@bd5760595778326ba7f1441bcf7e88b49de61a25 # v2.6.0
-      with:
-        arguments: build
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install Docker Compose
+        run: |
+          sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+          docker-compose version
+
+      - name: Create docker-compose.yml
+        run: |
+          cat <<EOF > docker-compose.yml
+          version: '3'
+          services:
+            db:
+              image: postgres:13
+              environment:
+                POSTGRES_USER: sonar
+                POSTGRES_PASSWORD: sonar
+                POSTGRES_DB: sonar
+              ports:
+                - "5432:5432"
+
+            sonarqube:
+              image: sonarqube:9.9-community
+              ports:
+                - "9000:9000"
+              environment:
+                SONAR_JDBC_URL: jdbc:postgresql://db:5432/sonar
+                SONAR_JDBC_USERNAME: sonar
+                SONAR_JDBC_PASSWORD: sonar
+              depends_on:
+                - db
+              shm_size: '2g'
+          EOF
+
+      - name: Start SonarQube
+        run: docker-compose up -d
+
+      - name: Wait for SonarQube to be ready
+        run: |
+          echo "Waiting for SonarQube to start..."
+          for i in {1..60}; do
+            STATUS=$(curl -s http://localhost:9000/api/system/status | jq -r .status || echo "")
+            if [ "$STATUS" == "UP" ]; then
+              echo "SonarQube is ready"
+              break
+            fi
+            echo "Still waiting ($i/60)..."
+            sleep 5
+          done
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Run Gradle SonarQube analysis
+        env:
+          SONAR_TOKEN: admin
+        run: |
+          ./gradlew sonarqube \
+            -Dsonar.projectKey=myproject \
+            -Dsonar.host.url=http://localhost:9000 \
+            -Dsonar.login=admin \
+            -Dsonar.password=admin
+
+      - name: Fetch Quality Gate Status
+        run: |
+          echo "Waiting briefly to allow SonarQube to process analysis..."
+          sleep 10
+          STATUS=$(curl -s -u admin:admin "http://localhost:9000/api/qualitygates/project_status?projectKey=myproject" | jq -r .projectStatus.status)
+          echo "SonarQube Quality Gate: $STATUS"
+          echo "## 🔍 SonarQube Quality Gate Result" > sonar-report.md
+          echo "**Status:** \`$STATUS\`" >> sonar-report.md
+          echo "" >> sonar-report.md
+          echo "[🔗 View on SonarQube](http://localhost:9000/dashboard?id=myproject)" >> sonar-report.md
+
+      - name: Comment on Pull Request with Sonar Summary
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: sonar-report.md       
