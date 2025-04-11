@@ -91,8 +91,19 @@ jobs:
           echo "" >> sonar-report.md
           echo "[🔗 View on SonarQube](http://localhost:9000/dashboard?id=myproject)" >> sonar-report.md
 
+      - name: Fetch Coverage Data
+        run: |
+          # Fetching line and branch coverage from SonarQube API
+          LINE_COVERAGE=$(curl -s -u admin:admin "http://localhost:9000/api/measures/component?componentKey=myproject&metricKeys=coverage" | jq -r '.component.measures[0].value')
+          BRANCH_COVERAGE=$(curl -s -u admin:admin "http://localhost:9000/api/measures/component?componentKey=myproject&metricKeys=branch_coverage" | jq -r '.component.measures[0].value')
+
+          # Writing the coverage data to sonar-report.md
+          echo "## 📊 Coverage Details" >> sonar-report.md
+          echo "**Line Coverage:** \`$LINE_COVERAGE%\`" >> sonar-report.md
+          echo "**Branch Coverage:** \`$BRANCH_COVERAGE%\`" >> sonar-report.md
+
       - name: Comment on Pull Request with Sonar Summary
         if: github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          path: sonar-report.md       
+          path: sonar-report.md     
