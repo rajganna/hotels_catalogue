@@ -11,7 +11,15 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class HotelsDataMergeApplication {
 
 	public static void main(String[] args) {
+		System.out.println("ss");
+		test();
 		SpringApplication.run(HotelsDataMergeApplication.class, args);
+	}
+
+	static String test() {
+		var sss = "ddd";
+
+		return sss;
 	}
 
 }
