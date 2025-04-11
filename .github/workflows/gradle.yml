@@ -1,6 +1,6 @@
 name: SonarQube Analysis with Gradle
 
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
   sonarqube-analysis:
@@ -77,3 +77,20 @@ jobs:
             -Dsonar.host.url=http://localhost:9000 \
             -Dsonar.login=admin \
             -Dsonar.password=admin
+
+      - name: Fetch Quality Gate Status
+        run: |
+          echo "Waiting briefly to allow SonarQube to process analysis..."
+          sleep 10
+          STATUS=$(curl -s -u admin:admin "http://localhost:9000/api/qualitygates/project_status?projectKey=myproject" | jq -r .projectStatus.status)
+          echo "SonarQube Quality Gate: $STATUS"
+          echo "## 🔍 SonarQube Quality Gate Result" > sonar-report.md
+          echo "**Status:** \`$STATUS\`" >> sonar-report.md
+          echo "" >> sonar-report.md
+          echo "[🔗 View on SonarQube](http://localhost:9000/dashboard?id=myproject)" >> sonar-report.md
+
+      - name: Comment on Pull Request with Sonar Summary
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: sonar-report.md       
