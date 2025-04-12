@@ -22,4 +22,16 @@ public class HotelsDataMergeApplication {
 		return sss;
 	}
 
+	static String test1() {
+		var sss = "ddd";
+
+		return sss;
+	}
+
+	static String test2() {
+		var sss = "ddd";
+
+		return sss;
+	}
+
 }
