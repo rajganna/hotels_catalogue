@@ -109,13 +109,13 @@ jobs:
           UNCOVERED_LINES=$(echo "$RESPONSE" | jq -r '.component.measures[] | select(.metric=="uncovered_lines") | .value')
 
           # Output or use in PR comment
-          echo "🔐 Vulnerabilities: $VULNERABILITIES"
-          echo "🐞 Bugs: $BUGS"
-          echo "🧹 Code Smells: $CODE_SMELLS"
-          echo "📈 Coverage: $COVERAGE%"
-          echo "📏 Line Coverage: $LINE_COVERAGE%"
-          echo "🌿 Branch Coverage: $BRANCH_COVERAGE%"
-          echo "🚫 Uncovered Lines: $UNCOVERED_LINES"
+          echo "🔐 Vulnerabilities: $VULNERABILITIES" >> sonar-report.md
+          echo "🐞 Bugs: $BUGS" >> sonar-report.md
+          echo "🧹 Code Smells: $CODE_SMELLS" >> sonar-report.md
+          echo "📈 Coverage: $COVERAGE%" >> sonar-report.md
+          echo "📏 Line Coverage: $LINE_COVERAGE%" >> sonar-report.md
+          echo "🌿 Branch Coverage: $BRANCH_COVERAGE%" >> sonar-report.md
+          echo "🚫 Uncovered Lines: $UNCOVERED_LINES" >> sonar-report.md
 
       - name: Comment on Pull Request with Sonar Summary
         if: github.event_name == 'pull_request'
