@@ -95,11 +95,13 @@ jobs:
           # Fetching line and branch coverage from SonarQube API
           LINE_COVERAGE=$(curl -s -u admin:admin "http://localhost:9000/api/measures/component?component=myproject&metricKeys=coverage" | jq -r '.component.measures[0].value')
           BRANCH_COVERAGE=$(curl -s -u admin:admin "http://localhost:9000/api/measures/component?component=myproject&metricKeys=branch_coverage" | jq -r '.component.measures[0].value')
+          CODE_SMELLS=$(curl -s -u admin:admin "http://localhost:9000/api/measures/component?component=myproject&metricKeys=code_smells" | jq -r '.component.measures[0].value')
 
           # Writing the coverage data to sonar-report.md
           echo "## 📊 Coverage Details" >> sonar-report.md
           echo "**Line Coverage:** \`$LINE_COVERAGE%\`" >> sonar-report.md
           echo "**Branch Coverage:** \`$BRANCH_COVERAGE%\`" >> sonar-report.md
+          echo "- **Code Smells:** \`${CODE_SMELLS}\`" >> sonar-report.md
 
       - name: Comment on Pull Request with Sonar Summary
         if: github.event_name == 'pull_request'
