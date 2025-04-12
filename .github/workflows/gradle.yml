@@ -93,11 +93,11 @@ jobs:
       - name: Fetch Coverage Data
         run: |
           # Fetching coverage & issue metrics
-          LINE_COVERAGE=$(curl -s -u $SONAR_AUTH "$SONAR_URL/api/measures/component?component=$PROJECT_KEY&metricKeys=coverage" | jq -r '.component.measures[0].value')
-          BRANCH_COVERAGE=$(curl -s -u $SONAR_AUTH "$SONAR_URL/api/measures/component?component=$PROJECT_KEY&metricKeys=branch_coverage" | jq -r '.component.measures[0].value')
-          CODE_SMELLS=$(curl -s -u $SONAR_AUTH "$SONAR_URL/api/measures/component?component=$PROJECT_KEY&metricKeys=code_smells" | jq -r '.component.measures[0].value')
-          BUGS=$(curl -s -u $SONAR_AUTH "$SONAR_URL/api/measures/component?component=$PROJECT_KEY&metricKeys=bugs" | jq -r '.component.measures[0].value')
-          VULNERABILITIES=$(curl -s -u $SONAR_AUTH "$SONAR_URL/api/measures/component?component=$PROJECT_KEY&metricKeys=vulnerabilities" | jq -r '.component.measures[0].value')
+          LINE_COVERAGE=$(curl -s -u $SONAR_AUTH "$SONAR_URL/api/measures/component?component=myproject&metricKeys=coverage" | jq -r '.component.measures[0].value')
+          BRANCH_COVERAGE=$(curl -s -u $SONAR_AUTH "$SONAR_URL/api/measures/component?component=myproject&metricKeys=branch_coverage" | jq -r '.component.measures[0].value')
+          CODE_SMELLS=$(curl -s -u $SONAR_AUTH "$SONAR_URL/api/measures/component?component=myproject&metricKeys=code_smells" | jq -r '.component.measures[0].value')
+          BUGS=$(curl -s -u $SONAR_AUTH "$SONAR_URL/api/measures/component?component=myproject&metricKeys=bugs" | jq -r '.component.measures[0].value')
+          VULNERABILITIES=$(curl -s -u $SONAR_AUTH "$SONAR_URL/api/measures/component?component=myproject&metricKeys=vulnerabilities" | jq -r '.component.measures[0].value')
 
           # Write metrics to markdown report
           echo "## 📊 SonarQube Coverage and Issues" >> sonar-report.md
