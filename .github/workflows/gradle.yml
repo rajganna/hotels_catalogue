@@ -78,7 +78,10 @@ jobs:
             -Dsonar.projectKey=myproject \
             -Dsonar.host.url=http://localhost:9000 \
             -Dsonar.login=admin \
-            -Dsonar.password=admin
+            -Dsonar.password=admin \
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }} \
+            -Dsonar.pullrequest.branch=${{ github.head_ref }} \
+            -Dsonar.pullrequest.base=${{ github.base_ref }}
 
       - name: Fetch Quality Gate Status
         run: |
@@ -90,19 +93,22 @@ jobs:
           echo "**Status:** \`$STATUS\`" >> sonar-report.md
           echo "" >> sonar-report.md
 
-      - name: Fetch New Code Metrics
+      - name: Fetch Coverage Data
         run: |
-          echo "## 📊 New Code Coverage & Quality Metrics" >> sonar-report.md
+          # Fetching coverage & issue metrics
+          LINE_COVERAGE=$(curl -s -u $SONAR_AUTH "$SONAR_URL/api/measures/component?component=$PROJECT_KEY&metricKeys=coverage" | jq -r '.component.measures[0].value')
+          BRANCH_COVERAGE=$(curl -s -u $SONAR_AUTH "$SONAR_URL/api/measures/component?component=$PROJECT_KEY&metricKeys=branch_coverage" | jq -r '.component.measures[0].value')
+          CODE_SMELLS=$(curl -s -u $SONAR_AUTH "$SONAR_URL/api/measures/component?component=$PROJECT_KEY&metricKeys=code_smells" | jq -r '.component.measures[0].value')
+          BUGS=$(curl -s -u $SONAR_AUTH "$SONAR_URL/api/measures/component?component=$PROJECT_KEY&metricKeys=bugs" | jq -r '.component.measures[0].value')
+          VULNERABILITIES=$(curl -s -u $SONAR_AUTH "$SONAR_URL/api/measures/component?component=$PROJECT_KEY&metricKeys=vulnerabilities" | jq -r '.component.measures[0].value')
 
-          for METRIC in new_coverage new_branch_coverage new_bugs new_code_smells new_vulnerabilities; do
-            VALUE=$(curl -s -u admin:admin \
-              "http://localhost:9000/api/measures/component?component=myproject&metricKeys=$METRIC" \
-              | jq -r '.component.measures[0].value // "N/A"')
-            
-            LABEL=$(echo $METRIC | sed -e 's/new_//' -e 's/_/ /g' | awk '{for(i=1;i<=NF;++i) $i=toupper(substr($i,1,1)) substr($i,2)} 1')
-
-            echo "**$LABEL:** \`$VALUE\`" >> sonar-report.md
-          done
+          # Write metrics to markdown report
+          echo "## 📊 SonarQube Coverage and Issues" >> sonar-report.md
+          echo "**Line Coverage:** \`$LINE_COVERAGE%\`" >> sonar-report.md
+          echo "**Branch Coverage:** \`$BRANCH_COVERAGE%\`" >> sonar-report.md
+          echo "**Code Smells:** \`${CODE_SMELLS}\`" >> sonar-report.md
+          echo "**Bugs:** \`${BUGS}\`" >> sonar-report.md
+          echo "**Vulnerabilities:** \`${VULNERABILITIES}\`" >> sonar-report.md
 
       - name: Comment on Pull Request with Sonar Summary
         if: github.event_name == 'pull_request'
