@@ -93,8 +93,8 @@ jobs:
       - name: Fetch Coverage Data
         run: |
           # Fetching line and branch coverage from SonarQube API
-          LINE_COVERAGE=$(curl -s -u admin:admin "http://localhost:9000/api/measures/component?componentKey=myproject&metricKeys=coverage" | jq -r '.component.measures[0].value')
-          BRANCH_COVERAGE=$(curl -s -u admin:admin "http://localhost:9000/api/measures/component?componentKey=myproject&metricKeys=branch_coverage" | jq -r '.component.measures[0].value')
+          LINE_COVERAGE=$(curl -s -u admin:admin "http://localhost:9000/api/measures/component?component=myproject&metricKeys=coverage" | jq -r '.component.measures[0].value')
+          BRANCH_COVERAGE=$(curl -s -u admin:admin "http://localhost:9000/api/measures/component?component=myproject&metricKeys=branch_coverage" | jq -r '.component.measures[0].value')
 
           # Writing the coverage data to sonar-report.md
           echo "## 📊 Coverage Details" >> sonar-report.md
