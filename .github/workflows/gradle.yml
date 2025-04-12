@@ -74,11 +74,11 @@ jobs:
         env:
           SONAR_TOKEN: admin
         run: |
-          ./gradlew sonarqube jacocoTestReport \
+          ./gradlew test jacocoTestReport sonarqube \
             -Dsonar.projectKey=myproject \
             -Dsonar.host.url=http://localhost:9000 \
             -Dsonar.login=admin \
-            -Dsonar.password=admin
+            -Dsonar.password=admin \
 
       - name: Fetch Quality Gate Status
         run: |
@@ -92,14 +92,30 @@ jobs:
 
       - name: Fetch Coverage Data
         run: |
-          # Fetching line and branch coverage from SonarQube API
-          LINE_COVERAGE=$(curl -s -u admin:admin "http://localhost:9000/api/measures/component?componentKey=myproject&metricKeys=coverage" | jq -r '.component.measures[0].value')
-          BRANCH_COVERAGE=$(curl -s -u admin:admin "http://localhost:9000/api/measures/component?componentKey=myproject&metricKeys=branch_coverage" | jq -r '.component.measures[0].value')
+          # Fetching coverage & issue metrics
+          SONAR_AUTH="admin:admin"
+          SONAR_URL="http://localhost:9000"
 
-          # Writing the coverage data to sonar-report.md
-          echo "## 📊 Coverage Details" >> sonar-report.md
-          echo "**Line Coverage:** \`$LINE_COVERAGE%\`" >> sonar-report.md
-          echo "**Branch Coverage:** \`$BRANCH_COVERAGE%\`" >> sonar-report.md
+          PROJECT_KEY="myproject"
+          RESPONSE=$(curl -s -u "$SONAR_AUTH" "$SONAR_URL/api/measures/component?component=myproject&metricKeys=bugs,vulnerabilities,code_smells,coverage,line_coverage,branch_coverage,uncovered_lines")
+
+          # Extract each metric
+          BUGS=$(echo "$RESPONSE" | jq -r '.component.measures[] | select(.metric=="bugs") | .value')
+          VULNERABILITIES=$(echo "$RESPONSE" | jq -r '.component.measures[] | select(.metric=="vulnerabilities") | .value')
+          CODE_SMELLS=$(echo "$RESPONSE" | jq -r '.component.measures[] | select(.metric=="code_smells") | .value')
+          COVERAGE=$(echo "$RESPONSE" | jq -r '.component.measures[] | select(.metric=="coverage") | .value')
+          LINE_COVERAGE=$(echo "$RESPONSE" | jq -r '.component.measures[] | select(.metric=="line_coverage") | .value')
+          BRANCH_COVERAGE=$(echo "$RESPONSE" | jq -r '.component.measures[] | select(.metric=="branch_coverage") | .value')
+          UNCOVERED_LINES=$(echo "$RESPONSE" | jq -r '.component.measures[] | select(.metric=="uncovered_lines") | .value')
+
+          # Output or use in PR comment
+          echo "🔐 Vulnerabilities: $VULNERABILITIES" >> sonar-report.md
+          echo "🐞 Bugs: $BUGS" >> sonar-report.md
+          echo "🧹 Code Smells: $CODE_SMELLS" >> sonar-report.md
+          echo "📈 Coverage: $COVERAGE%" >> sonar-report.md
+          echo "📏 Line Coverage: $LINE_COVERAGE%" >> sonar-report.md
+          echo "🌿 Branch Coverage: $BRANCH_COVERAGE%" >> sonar-report.md
+          echo "🚫 Uncovered Lines: $UNCOVERED_LINES" >> sonar-report.md
 
       - name: Comment on Pull Request with Sonar Summary
         if: github.event_name == 'pull_request'
