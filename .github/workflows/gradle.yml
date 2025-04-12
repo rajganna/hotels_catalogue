@@ -74,7 +74,7 @@ jobs:
         env:
           SONAR_TOKEN: admin
         run: |
-          ./gradlew sonarqube \
+          ./gradlew sonarqube jacocoTestReport \
             -Dsonar.projectKey=myproject \
             -Dsonar.host.url=http://localhost:9000 \
             -Dsonar.login=admin \
@@ -89,7 +89,6 @@ jobs:
           echo "## 🔍 SonarQube Quality Gate Result" > sonar-report.md
           echo "**Status:** \`$STATUS\`" >> sonar-report.md
           echo "" >> sonar-report.md
-          echo "[🔗 View on SonarQube](http://localhost:9000/dashboard?id=myproject)" >> sonar-report.md
 
       - name: Fetch Coverage Data
         run: |
