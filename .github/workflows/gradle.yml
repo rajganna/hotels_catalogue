@@ -1,108 +1,43 @@
-name: SonarQube Analysis with Gradle
+name: Diff Coverage on PR
 
-on: [pull_request]
-
+on:
+  pull_request:
 
 jobs:
-  sonarqube-analysis:
+  diff-coverage:
     runs-on: ubuntu-latest
+
     permissions:
-      pull-requests: write
+      contents: read
+      pull-requests: write  # Needed to comment on PR
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up JDK 17
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install diff-cover
+        run: pip install diff-cover
+
+      - name: Set up Java
         uses: actions/setup-java@v3
         with:
           java-version: '17'
-          distribution: 'temurin'
 
-      - name: Install Docker Compose
+      - name: Build and generate coverage
+        run: ./gradlew test jacocoTestReport
+
+      - name: Generate diff coverage report
         run: |
-          sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-          sudo chmod +x /usr/local/bin/docker-compose
-          docker-compose version
+          diff-cover build/reports/jacoco/test/jacocoTestReport.xml \
+            --compare-branch=origin/main \
+            --markdown-report=diff-cover-report.md
 
-      - name: Create docker-compose.yml
-        run: |
-          cat <<EOF > docker-compose.yml
-          version: '3'
-          services:
-            db:
-              image: postgres:13
-              environment:
-                POSTGRES_USER: sonar
-                POSTGRES_PASSWORD: sonar
-                POSTGRES_DB: sonar
-              ports:
-                - "5432:5432"
-
-            sonarqube:
-              image: sonarqube:9.9-community
-              ports:
-                - "9000:9000"
-              environment:
-                SONAR_JDBC_URL: jdbc:postgresql://db:5432/sonar
-                SONAR_JDBC_USERNAME: sonar
-                SONAR_JDBC_PASSWORD: sonar
-              depends_on:
-                - db
-              shm_size: '2g'
-          EOF
-
-      - name: Start SonarQube
-        run: docker-compose up -d
-
-      - name: Wait for SonarQube to be ready
-        run: |
-          echo "Waiting for SonarQube to start..."
-          for i in {1..60}; do
-            STATUS=$(curl -s http://localhost:9000/api/system/status | jq -r .status || echo "")
-            if [ "$STATUS" == "UP" ]; then
-              echo "SonarQube is ready"
-              break
-            fi
-            echo "Still waiting ($i/60)..."
-            sleep 5
-          done
-
-      - name: Make gradlew executable
-        run: chmod +x gradlew
-
-      - name: Run Gradle SonarQube analysis
-        env:
-          SONAR_TOKEN: admin
-        run: |
-          ./gradlew sonarqube jacocoTestReport \
-            -Dsonar.projectKey=myproject \
-            -Dsonar.host.url=http://localhost:9000 \
-            -Dsonar.login=admin \
-            -Dsonar.password=admin
-
-      - name: Fetch Quality Gate Status
-        run: |
-          echo "Waiting briefly to allow SonarQube to process analysis..."
-          sleep 10
-          STATUS=$(curl -s -u admin:admin "http://localhost:9000/api/qualitygates/project_status?projectKey=myproject" | jq -r .projectStatus.status)
-          echo "SonarQube Quality Gate: $STATUS"
-          echo "## 🔍 SonarQube Quality Gate Result" > sonar-report.md
-          echo "**Status:** \`$STATUS\`" >> sonar-report.md
-          echo "" >> sonar-report.md
-
-      - name: Fetch Coverage Data
-        run: |
-          # Fetching line and branch coverage from SonarQube API
-          LINE_COVERAGE=$(curl -s -u admin:admin "http://localhost:9000/api/measures/component?componentKey=myproject&metricKeys=coverage" | jq -r '.component.measures[0].value')
-          BRANCH_COVERAGE=$(curl -s -u admin:admin "http://localhost:9000/api/measures/component?componentKey=myproject&metricKeys=branch_coverage" | jq -r '.component.measures[0].value')
-
-          # Writing the coverage data to sonar-report.md
-          echo "## 📊 Coverage Details" >> sonar-report.md
-          echo "**Line Coverage:** \`$LINE_COVERAGE%\`" >> sonar-report.md
-          echo "**Branch Coverage:** \`$BRANCH_COVERAGE%\`" >> sonar-report.md
-
-      - name: Comment on Pull Request with Sonar Summary
-        if: github.event_name == 'pull_request'
+      - name: Post diff coverage comment
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          path: sonar-report.md     
+          path: diff-cover-report.md
