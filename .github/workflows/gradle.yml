@@ -42,7 +42,7 @@ jobs:
         run: |
           diff-cover build/reports/jacoco/test/jacocoTestReport.xml \
             --compare-branch=origin/${{ github.base_ref }} \
-            --markdown-report=diff-cover-report.md --verbose
+            --markdown-report=diff-cover-report.md
 
       - name: Fetch Quality Gate Status
         run: |
