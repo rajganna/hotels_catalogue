@@ -38,7 +38,7 @@ jobs:
       - name: Generate diff coverage report
         run: |
           diff-cover build/reports/jacoco/test/jacocoTestReport.xml \
-            --compare-branch=origin/main \
+            --compare-branch=rajganna-patch-1 \
             --markdown-report=diff-cover-report.md
 
       - name: Post diff coverage comment
